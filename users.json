@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1761531985927,
+    "name": "faraznin",
+    "email": "foanfd@df.com",
+    "password": "$2b$10$qCg2s8MsmBT3tU0FctRqpO5G5DQ.OSyQA041c./BseYu/B5d3MKoq",
+    "createdAt": "2025-10-27T02:26:25.927Z"
+  },
+  {
+    "id": 1761532069977,
+    "name": "faraznin",
+    "email": "ninninnn@hyvy.com",
+    "password": "$2b$10$xM1CjMkmVaSesUCvxruIB.JKUA.W1o8OdDujx3h8YbyElDFbD6tX6",
+    "createdAt": "2025-10-27T02:27:49.977Z"
+  },
+  {
+    "id": 1761577905476,
+    "name": "Faraz",
+    "email": "ninninnn@hy.com",
+    "password": "$2b$10$Y63AjTnAAtmbBX8FzGsF3O/fzLvCVRlDTWGSQEplQbhSWHnozG446",
+    "createdAt": "2025-10-27T15:11:45.476Z"
+  },
+  {
+    "id": 1761577912288,
+    "name": "Faraz Akhtar",
+    "email": "akhtr.faraz@gmail.com",
+    "password": "$2b$10$dO5qjnSopcAkS/30gbhlXem3be32rRNuXxgrzsuRJUMTjgmkDZvDm",
+    "createdAt": "2025-10-27T15:11:52.288Z"
+  }
+]

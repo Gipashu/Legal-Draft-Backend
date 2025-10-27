@@ -229,13 +229,18 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import AuthRouter from "./auth/routes/AuthRouter.js";
 
 import { generateReport } from "./utils/docUtils.js";
 import { getSavePath } from "./utils/fileUtils.js";
 
 const app = express();
+
 app.use(cors());
 app.use(bodyParser.json({ limit: "5mb" }));
+app.use("/api/auth", AuthRouter);
+
+
 const PORT = 4000;
 // server.js (or where your routes are)
 const TYPE_MAP = {
