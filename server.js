@@ -251,6 +251,7 @@ const TYPE_MAP = {
   commercial: "commercial",
   industrial: "industrial",
   land: "land",
+  deed: "deed",
   // add other synonyms
 };
 

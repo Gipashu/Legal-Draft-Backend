@@ -63,29 +63,46 @@ function sanitizeValue(val) {
 
 export function getValueForPlaceholder(name, formData) {
   const raw = name.trim();
+  // First try exact match
+  if (Object.prototype.hasOwnProperty.call(formData, raw)) {
+    return sanitizeValue(formData[raw]);
+  }
+
+  // Try different variations
   const candidates = [
-    raw,
+    raw.toLowerCase(),
+    raw.replace(/[^a-zA-Z0-9]/g, ""),
+    raw.replace(/[^a-zA-Z0-9]/g, "").toLowerCase(),
+    toCamelCase(raw),
     raw.replace(/\s+/g, ""),
     raw.replace(/\s+/g, "_"),
-    raw.toLowerCase(),
-    toCamelCase(raw),
     raw.replace(/[^a-zA-Z0-9_]/g, ""),
   ];
 
   for (const k of candidates) {
-    if (Object.prototype.hasOwnProperty.call(formData, k)) {
+    if (k && Object.prototype.hasOwnProperty.call(formData, k)) {
       return sanitizeValue(formData[k]);
     }
   }
+  
+  console.warn(`No match found for placeholder: ${raw}`);
   return "";
 }
 
 export async function normalizeTemplateBuffer(buffer) {
   const zip = await JSZip.loadAsync(buffer);
   const docFile = zip.file("word/document.xml");
-  if (!docFile) return { buffer, mergedXml: "" };
+  if (!docFile) {
+    console.error("No document.xml found in the template");
+    return { buffer, mergedXml: "" };
+  }
+  
   const docXml = await docFile.async("string");
+  console.log("First 500 chars of document.xml:", docXml.substring(0, 500));
+  
   const mergedXml = mergeRunsContainingPlaceholders(docXml);
+  console.log("Merged XML contains placeholders:", mergedXml.includes("{{"));
+  
   zip.file("word/document.xml", mergedXml);
   const newBuf = await zip.generateAsync({ type: "nodebuffer" });
   return { buffer: newBuf, mergedXml };
@@ -97,10 +114,17 @@ export async function generateReport(templatePath, formData, format = "docx") {
   const { buffer: normalizedBuf, mergedXml } = await normalizeTemplateBuffer(templateBuf);
   const placeholders = getPlaceholdersFromXml(mergedXml);
 
+  console.log('Form data keys:', Object.keys(formData));
+  console.log('Template placeholders:', placeholders);
+
   const mappedData = {};
   placeholders.forEach((ph) => {
-    mappedData[ph] = getValueForPlaceholder(ph, formData);
+    const value = getValueForPlaceholder(ph, formData);
+    console.log(`Processing placeholder: ${ph} => ${value}`);
+    mappedData[ph] = value;
   });
+  
+  console.log('Mapped data:', JSON.stringify(mappedData, null, 2));
 
   const reportBuffer = await createReport({
     template: new Uint8Array(normalizedBuf),
