@@ -240,7 +240,9 @@ app.use(cors());
 app.use(bodyParser.json({ limit: "5mb" }));
 app.use("/api/auth", AuthRouter);
 
-
+app.get("/hello", (req, res) => {
+  res.send("hello");
+});
 const PORT = 4000;
 // server.js (or where your routes are)
 const TYPE_MAP = {
