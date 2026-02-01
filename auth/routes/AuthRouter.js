@@ -9,4 +9,9 @@ router.post("/signup", validateSignup, signup);
 
 router.post("/login", validateLogin, login);
 
+router.get("/hello", (req, res) => {
+  res.send("hello");
+});
+
+
 export default router;
