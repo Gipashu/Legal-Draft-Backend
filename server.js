@@ -242,8 +242,7 @@ app.use("/api/auth", AuthRouter);
 
 
 const PORT = process.env.PORT || 4000;
-// IMPORTANT: Update your Frontend (e.g., api.js) to use:
-// https://legal-draft-backend-twiw.onrender.com
+
 
 // server.js (or where your routes are)
 const TYPE_MAP = {
