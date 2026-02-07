@@ -7,12 +7,10 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
-    "docx-pdf": "^0.0.1",
     "docx-templates": "^4.14.1",
-    "docx2pdf-converter": "^2.1.1",
     "docxtemplater": "^3.66.3",
     "dotenv": "^16.3.1",
     "express": "^4.21.2",

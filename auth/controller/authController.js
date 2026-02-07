@@ -1,5 +1,5 @@
 import fs from "fs";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const FILE_PATH = "./users.json";

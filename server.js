@@ -240,10 +240,10 @@ app.use(cors());
 app.use(bodyParser.json({ limit: "5mb" }));
 app.use("/api/auth", AuthRouter);
 
-app.get("/hello", (req, res) => {
-  res.send("hello");
-});
-const PORT = 4000;
+
+const PORT = process.env.PORT || 4000;
+
+
 // server.js (or where your routes are)
 const TYPE_MAP = {
   flat: "residential",
@@ -319,4 +319,4 @@ app.post("/api/generate-doc/:type", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

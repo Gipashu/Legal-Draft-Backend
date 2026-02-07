@@ -1,8 +1,18 @@
+import puppeteer from "puppeteer";
+import mammoth from "mammoth";
 import JSZip from "jszip";
 import { createReport } from "docx-templates";
 import fs from "fs";
 import path from "path";
-import DOCX2PDFConverter from "docx2pdf-converter";
+
+const LOG_FILE = path.resolve("./backend_debug.log");
+
+function logToFile(msg) {
+  const timestamp = new Date().toISOString();
+  const line = `[${timestamp}] ${msg}\n`;
+  fs.appendFileSync(LOG_FILE, line);
+  console.log(msg);
+}
 
 // --- merge runs containing placeholders ---
 export function mergeRunsContainingPlaceholders(xml) {
@@ -121,7 +131,7 @@ export async function normalizeTemplateBuffer(buffer) {
   console.log("First 500 chars of document.xml:", docXml.substring(0, 500));
   
   const mergedXml = mergeRunsContainingPlaceholders(docXml);
-  console.log("Merged XML contains placeholders:", mergedXml.includes("{{"));
+    logToFile("Merged XML contains placeholders: " + mergedXml.includes("{{"));
   
   zip.file("word/document.xml", mergedXml);
   const newBuf = await zip.generateAsync({ type: "nodebuffer" });
@@ -130,9 +140,13 @@ export async function normalizeTemplateBuffer(buffer) {
 
 // --- generate final report ---
 export async function generateReport(templatePath, formData, format = "docx") {
+    logToFile(`[generateReport] Starting for template: ${templatePath}, format: ${format}`);
   const templateBuf = fs.readFileSync(templatePath);
   const { buffer: normalizedBuf, mergedXml } = await normalizeTemplateBuffer(templateBuf);
+    logToFile(`[generateReport] Template normalized, mergedXml length: ${mergedXml?.length || 0}`);
+  
   const placeholders = getPlaceholdersFromXml(mergedXml);
+    logToFile(`[generateReport] Found ${placeholders.length} placeholders in template`);
 
   console.log('Form data keys:', Object.keys(formData));
   console.log('Template placeholders:', placeholders);
@@ -144,20 +158,77 @@ export async function generateReport(templatePath, formData, format = "docx") {
     mappedData[ph] = value;
   });
   
-  console.log('Mapped data:', JSON.stringify(mappedData, null, 2));
-
-  const reportBuffer = await createReport({
-    template: new Uint8Array(normalizedBuf),
-    data: mappedData,
-    cmdDelimiter: ["{{", "}}"],
-  });
+    logToFile('[generateReport] Mapped data prepared, calling createReport');
+  
+  let reportBuffer;
+  try {
+    reportBuffer = await createReport({
+      template: new Uint8Array(normalizedBuf),
+      data: mappedData,
+      cmdDelimiter: ["{{", "}}"],
+    });
+        logToFile(`[generateReport] createReport successful, buffer size: ${reportBuffer.length}`);
+  } catch (createErr) {
+        logToFile('[generateReport] Error in createReport: ' + createErr.message);
+    throw new Error(`docx-templates failed: ${createErr.message}`);
+  }
 
   if (format === "pdf") {
-    const tempDocx = path.resolve("./templates/temp.docx");
-    const tempPdf = path.resolve("./templates/temp.pdf");
-    fs.writeFileSync(tempDocx, reportBuffer);
-    await DOCX2PDFConverter.convert(tempDocx, tempPdf);
-    return fs.readFileSync(tempPdf);
+        logToFile('[generateReport] Starting PDF conversion');
+    // 1) Convert DOCX buffer to HTML using mammoth
+    try {
+      const { value: html } = await mammoth.convertToHtml({ buffer: Buffer.from(reportBuffer) });
+            logToFile(`[generateReport] Mammoth conversion to HTML successful, HTML length: ${html?.length || 0}`);
+    
+      // 2) Wrap HTML with styles for printing
+      const fullHtml = `
+        <!doctype html>
+        <html>
+          <head>
+            <meta charset="utf-8"/>
+            <style>
+              body { font-family: "Times New Roman", serif; font-size: 12pt; margin: 20mm; color: #111; }
+              p { margin: 0 0 8px; line-height: 1.45; }
+              table { border-collapse: collapse; width: 100%; }
+              table td, table th { border: 1px solid #ccc; padding: 6px; }
+              img { max-width: 100%; height: auto; }
+            </style>
+          </head>
+          <body>${html}</body>
+        </html>
+      `;
+
+      // 3) Use puppeteer to render HTML -> PDF
+            logToFile('[generateReport] Launching Puppeteer');
+      const browser = await puppeteer.launch({
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        headless: "new"
+      });
+            logToFile('[generateReport] Puppeteer launched');
+
+      try {
+        const page = await browser.newPage();
+                logToFile('[generateReport] New page created in Puppeteer');
+        await page.setContent(fullHtml, { waitUntil: "networkidle0" });
+                logToFile('[generateReport] HTML content set in Puppeteer');
+        const pdfBuffer = await page.pdf({
+          format: "A4",
+          printBackground: true,
+          margin: { top: "18mm", bottom: "18mm", left: "15mm", right: "15mm" }
+        });
+                logToFile(`[generateReport] PDF generated, buffer size: ${pdfBuffer.length}`);
+        return Buffer.from(pdfBuffer);
+      } catch (puppeteerErr) {
+                logToFile('[generateReport] Puppeteer error: ' + puppeteerErr.message);
+        throw new Error(`Puppeteer failed: ${puppeteerErr.message}`);
+      } finally {
+        await browser.close();
+                logToFile('[generateReport] Puppeteer browser closed');
+      }
+    } catch (mammothErr) {
+            logToFile('[generateReport] Mammoth error: ' + mammothErr.message);
+      throw new Error(`Mammoth failed: ${mammothErr.message}`);
+    }
   }
 
   return Buffer.from(reportBuffer);
