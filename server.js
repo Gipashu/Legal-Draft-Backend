@@ -240,10 +240,15 @@ app.use(cors());
 app.use(bodyParser.json({ limit: "5mb" }));
 app.use("/api/auth", AuthRouter);
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 
 const PORT = process.env.PORT || 4000;
-// IMPORTANT: Update your Frontend (e.g., api.js) to use:
-// https://legal-draft-backend-twiw.onrender.com
+
 
 // server.js (or where your routes are)
 const TYPE_MAP = {

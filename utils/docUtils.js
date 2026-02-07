@@ -176,58 +176,64 @@ export async function generateReport(templatePath, formData, format = "docx") {
   if (format === "pdf") {
         logToFile('[generateReport] Starting PDF conversion');
     // 1) Convert DOCX buffer to HTML using mammoth
+    let html;
     try {
-      const { value: html } = await mammoth.convertToHtml({ buffer: Buffer.from(reportBuffer) });
-            logToFile(`[generateReport] Mammoth conversion to HTML successful, HTML length: ${html?.length || 0}`);
-    
-      // 2) Wrap HTML with styles for printing
-      const fullHtml = `
-        <!doctype html>
-        <html>
-          <head>
-            <meta charset="utf-8"/>
-            <style>
-              body { font-family: "Times New Roman", serif; font-size: 12pt; margin: 20mm; color: #111; }
-              p { margin: 0 0 8px; line-height: 1.45; }
-              table { border-collapse: collapse; width: 100%; }
-              table td, table th { border: 1px solid #ccc; padding: 6px; }
-              img { max-width: 100%; height: auto; }
-            </style>
-          </head>
-          <body>${html}</body>
-        </html>
-      `;
+      const result = await mammoth.convertToHtml({ buffer: Buffer.from(reportBuffer) });
+      html = result.value;
+      logToFile(`[generateReport] Mammoth conversion to HTML successful, HTML length: ${html?.length || 0}`);
+    } catch (mammothErr) {
+      logToFile('[generateReport] Mammoth error: ' + mammothErr.message);
+      throw new Error(`Mammoth failed: ${mammothErr.message}`);
+    }
 
-      // 3) Use puppeteer to render HTML -> PDF
-            logToFile('[generateReport] Launching Puppeteer');
-      const browser = await puppeteer.launch({
+    // 2) Wrap HTML with styles for printing
+    const fullHtml = `
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8"/>
+          <style>
+            body { font-family: "Times New Roman", serif; font-size: 12pt; margin: 20mm; color: #111; }
+            p { margin: 0 0 8px; line-height: 1.45; }
+            table { border-collapse: collapse; width: 100%; }
+            table td, table th { border: 1px solid #ccc; padding: 6px; }
+            img { max-width: 100%; height: auto; }
+          </style>
+        </head>
+        <body>${html}</body>
+      </html>
+    `;
+
+    // 3) Use puppeteer to render HTML -> PDF
+    logToFile('[generateReport] Launching Puppeteer');
+    let browser;
+    try {
+      browser = await puppeteer.launch({
         args: ["--no-sandbox", "--disable-setuid-sandbox"],
         headless: "new"
       });
-            logToFile('[generateReport] Puppeteer launched');
+      logToFile('[generateReport] Puppeteer launched');
 
-      try {
-        const page = await browser.newPage();
-                logToFile('[generateReport] New page created in Puppeteer');
-        await page.setContent(fullHtml, { waitUntil: "networkidle0" });
-                logToFile('[generateReport] HTML content set in Puppeteer');
-        const pdfBuffer = await page.pdf({
-          format: "A4",
-          printBackground: true,
-          margin: { top: "18mm", bottom: "18mm", left: "15mm", right: "15mm" }
-        });
-                logToFile(`[generateReport] PDF generated, buffer size: ${pdfBuffer.length}`);
-        return Buffer.from(pdfBuffer);
-      } catch (puppeteerErr) {
-                logToFile('[generateReport] Puppeteer error: ' + puppeteerErr.message);
-        throw new Error(`Puppeteer failed: ${puppeteerErr.message}`);
-      } finally {
+      const page = await browser.newPage();
+      logToFile('[generateReport] New page created in Puppeteer');
+      await page.setContent(fullHtml, { waitUntil: "networkidle0" });
+      logToFile('[generateReport] HTML content set in Puppeteer');
+      
+      const pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        margin: { top: "18mm", bottom: "18mm", left: "15mm", right: "15mm" }
+      });
+      logToFile(`[generateReport] PDF generated, buffer size: ${pdfBuffer.length}`);
+      return Buffer.from(pdfBuffer);
+    } catch (puppeteerErr) {
+      logToFile('[generateReport] Puppeteer error: ' + puppeteerErr.message);
+      throw new Error(`Puppeteer failed: ${puppeteerErr.message}`);
+    } finally {
+      if (browser) {
         await browser.close();
-                logToFile('[generateReport] Puppeteer browser closed');
+        logToFile('[generateReport] Puppeteer browser closed');
       }
-    } catch (mammothErr) {
-            logToFile('[generateReport] Mammoth error: ' + mammothErr.message);
-      throw new Error(`Mammoth failed: ${mammothErr.message}`);
     }
   }
 
